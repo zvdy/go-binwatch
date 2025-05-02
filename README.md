@@ -1,7 +1,11 @@
 # BinWatch - Secure Linux Binary Auditing Tool
 
-![binwatch](https://i.imgur.com/GyCGhoZ.png)
-> _BinWatch - Protecting your system one binary at a time._
+[![Go Report Card](https://goreportcard.com/badge/github.com/zvdy/go-binwatch)](https://goreportcard.com/report/github.com/zvdy/go-binwatch)
+
+<div align="center">
+    <img src="https://i.imgur.com/GyCGhoZ.png" alt="BinWatch Logo" width="160">  
+    <p><em>BinWatch - Protecting your system one binary at a time.</em></p>
+</div>
 
 BinWatch is a secure command-line tool for Linux that monitors system binaries for changes and provides logging when modifications are detected. It's designed to be run as a cronjob or manually to provide a comprehensive auditing solution for system administrators concerned about security.
 
