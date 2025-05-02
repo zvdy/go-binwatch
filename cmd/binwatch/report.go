@@ -145,103 +145,147 @@ func filterChanges(changes []*audit.Change, since time.Time, changeType, pathPat
 // displayReport shows the report in the requested format
 func displayReport(changes []*audit.Change, dbSummary map[string]interface{}, summaryOnly bool) {
 	// Count types of changes
-	var addedCount, deletedCount, modifiedContentCount, modifiedPermsCount, modifiedOwnerCount int
+	changeCounts := countChangeTypes(changes)
+	
+	// Output in appropriate format
+	if jsonOutput {
+		outputJSONReport(changes, dbSummary, changeCounts, summaryOnly)
+	} else {
+		outputTextReport(changes, dbSummary, changeCounts, summaryOnly)
+	}
+}
+
+// countChangeTypes counts the occurrences of each change type
+func countChangeTypes(changes []*audit.Change) map[string]int {
+	counts := map[string]int{
+		"added":                0,
+		"deleted":              0,
+		"modified_content":     0,
+		"modified_permissions": 0,
+		"modified_owner":       0,
+		"total":                len(changes),
+	}
+	
 	for _, change := range changes {
 		switch change.ChangeType {
 		case "added":
-			addedCount++
+			counts["added"]++
 		case "deleted":
-			deletedCount++
+			counts["deleted"]++
 		case "modified_content":
-			modifiedContentCount++
+			counts["modified_content"]++
 		case "modified_permissions":
-			modifiedPermsCount++
+			counts["modified_permissions"]++
 		case "modified_owner":
-			modifiedOwnerCount++
+			counts["modified_owner"]++
 		}
 	}
+	
+	return counts
+}
 
-	// Output in JSON format if requested
-	if jsonOutput {
-		report := map[string]interface{}{
-			"database_summary": dbSummary,
-			"changes_summary": map[string]int{
-				"added":                addedCount,
-				"deleted":              deletedCount,
-				"modified_content":     modifiedContentCount,
-				"modified_permissions": modifiedPermsCount,
-				"modified_owner":       modifiedOwnerCount,
-				"total":                len(changes),
-			},
-		}
-
-		if !summaryOnly {
-			report["changes"] = changes
-		}
-
-		jsonData, _ := json.MarshalIndent(report, "", "  ")
-		fmt.Println(string(jsonData))
-		return
+// outputJSONReport formats and outputs the report in JSON format
+func outputJSONReport(changes []*audit.Change, dbSummary map[string]interface{}, changeCounts map[string]int, summaryOnly bool) {
+	report := map[string]interface{}{
+		"database_summary": dbSummary,
+		"changes_summary": changeCounts,
 	}
 
-	// Output text report
+	if !summaryOnly {
+		report["changes"] = changes
+	}
+
+	jsonData, _ := json.MarshalIndent(report, "", "  ")
+	fmt.Println(string(jsonData))
+}
+
+// outputTextReport formats and outputs the report in human-readable text format
+func outputTextReport(changes []*audit.Change, dbSummary map[string]interface{}, changeCounts map[string]int, summaryOnly bool) {
+	// Print report header and database info
+	printReportHeader(dbSummary)
+	
+	// Print changes summary
+	printChangesSummary(changeCounts)
+	
+	// Show detailed changes if requested and we have changes
+	if !summaryOnly && len(changes) > 0 {
+		printDetailedChanges(changes)
+	}
+}
+
+// printReportHeader prints the header of the text report
+func printReportHeader(dbSummary map[string]interface{}) {
 	fmt.Println("BinWatch Audit Report")
 	fmt.Println("=====================")
 	fmt.Printf("Database Path: %s\n", dbSummary["database_path"])
 	fmt.Printf("Total Binaries: %d\n", dbSummary["total_binaries"])
 	fmt.Printf("Last Update: %v\n", dbSummary["last_update"])
 	fmt.Println()
+}
 
+// printChangesSummary prints the summary of changes
+func printChangesSummary(counts map[string]int) {
 	fmt.Println("Changes Summary")
 	fmt.Println("--------------")
-	fmt.Printf("Total Changes: %d\n", len(changes))
-	fmt.Printf("  - New Binaries: %d\n", addedCount)
-	fmt.Printf("  - Deleted Binaries: %d\n", deletedCount)
-	fmt.Printf("  - Modified Content: %d\n", modifiedContentCount)
-	fmt.Printf("  - Modified Permissions: %d\n", modifiedPermsCount)
-	fmt.Printf("  - Modified Ownership: %d\n", modifiedOwnerCount)
+	fmt.Printf("Total Changes: %d\n", counts["total"])
+	fmt.Printf("  - New Binaries: %d\n", counts["added"])
+	fmt.Printf("  - Deleted Binaries: %d\n", counts["deleted"])
+	fmt.Printf("  - Modified Content: %d\n", counts["modified_content"])
+	fmt.Printf("  - Modified Permissions: %d\n", counts["modified_permissions"])
+	fmt.Printf("  - Modified Ownership: %d\n", counts["modified_owner"])
+}
 
-	// Show detailed changes if requested and we have changes
-	if !summaryOnly && len(changes) > 0 {
-		fmt.Println("\nDetailed Changes")
-		fmt.Println("----------------")
+// printDetailedChanges prints detailed information about each change
+func printDetailedChanges(changes []*audit.Change) {
+	fmt.Println("\nDetailed Changes")
+	fmt.Println("----------------")
 
-		// Sort changes by severity (most critical first)
-		sort.Slice(changes, func(i, j int) bool {
-			// Define severity order
-			severity := map[string]int{
-				"modified_content":     0,
-				"modified_owner":       1,
-				"modified_permissions": 2,
-				"deleted":              3,
-				"added":                4,
-			}
-			return severity[changes[i].ChangeType] < severity[changes[j].ChangeType]
-		})
+	// Sort changes by severity (most critical first)
+	sortChangesBySeverity(changes)
 
-		for i, change := range changes {
-			fmt.Printf("\n[%d] %s\n", i+1, formatChangeType(change.ChangeType))
-			fmt.Printf("Path: %s\n", change.Binary.Path)
-			fmt.Printf("Detected: %s\n", change.DetectedTime.Format("2006-01-02 15:04:05"))
+	// Print each change
+	for i, change := range changes {
+		printChangeDetails(i+1, change)
+	}
+}
 
-			switch change.ChangeType {
-			case "added":
-				fmt.Printf("Owner: %s\n", change.Binary.Owner)
-				fmt.Printf("Permissions: %s\n", change.Binary.Permissions)
-				fmt.Printf("SHA256: %s\n", change.Binary.SHA256Hash)
-			case "deleted":
-				// Nothing additional for deleted binaries
-			case "modified_content":
-				fmt.Printf("Old Hash: %s\n", change.OldValue)
-				fmt.Printf("New Hash: %s\n", change.NewValue)
-			case "modified_permissions":
-				fmt.Printf("Old Permissions: %s\n", change.OldValue)
-				fmt.Printf("New Permissions: %s\n", change.NewValue)
-			case "modified_owner":
-				fmt.Printf("Old Owner: %s\n", change.OldValue)
-				fmt.Printf("New Owner: %s\n", change.NewValue)
-			}
+// sortChangesBySeverity sorts changes by their severity level
+func sortChangesBySeverity(changes []*audit.Change) {
+	sort.Slice(changes, func(i, j int) bool {
+		// Define severity order
+		severity := map[string]int{
+			"modified_content":     0,
+			"modified_owner":       1,
+			"modified_permissions": 2,
+			"deleted":              3,
+			"added":                4,
 		}
+		return severity[changes[i].ChangeType] < severity[changes[j].ChangeType]
+	})
+}
+
+// printChangeDetails prints detailed information about a specific change
+func printChangeDetails(index int, change *audit.Change) {
+	fmt.Printf("\n[%d] %s\n", index, formatChangeType(change.ChangeType))
+	fmt.Printf("Path: %s\n", change.Binary.Path)
+	fmt.Printf("Detected: %s\n", change.DetectedTime.Format("2006-01-02 15:04:05"))
+
+	switch change.ChangeType {
+	case "added":
+		fmt.Printf("Owner: %s\n", change.Binary.Owner)
+		fmt.Printf("Permissions: %s\n", change.Binary.Permissions)
+		fmt.Printf("SHA256: %s\n", change.Binary.SHA256Hash)
+	case "deleted":
+		// Nothing additional for deleted binaries
+	case "modified_content":
+		fmt.Printf("Old Hash: %s\n", change.OldValue)
+		fmt.Printf("New Hash: %s\n", change.NewValue)
+	case "modified_permissions":
+		fmt.Printf("Old Permissions: %s\n", change.OldValue)
+		fmt.Printf("New Permissions: %s\n", change.NewValue)
+	case "modified_owner":
+		fmt.Printf("Old Owner: %s\n", change.OldValue)
+		fmt.Printf("New Owner: %s\n", change.NewValue)
 	}
 }
 
