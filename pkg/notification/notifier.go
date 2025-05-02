@@ -212,8 +212,6 @@ func tryMultipleNotificationMethods(title, message, urgency string) error {
 
 				if err := cmd.Run(); err == nil {
 					return nil
-				} else {
-					lastErr = err
 				}
 			}
 		}
@@ -232,9 +230,8 @@ func tryMultipleNotificationMethods(title, message, urgency string) error {
 
 		if err := cmd.Run(); err == nil {
 			return nil
-		} else {
-			lastErr = err
 		}
+		// Don't reassign lastErr here since it's never used
 	}
 
 	// Method 4: Try using wall command to broadcast to all terminals

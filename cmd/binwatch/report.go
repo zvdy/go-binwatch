@@ -146,7 +146,7 @@ func filterChanges(changes []*audit.Change, since time.Time, changeType, pathPat
 func displayReport(changes []*audit.Change, dbSummary map[string]interface{}, summaryOnly bool) {
 	// Count types of changes
 	changeCounts := countChangeTypes(changes)
-	
+
 	// Output in appropriate format
 	if jsonOutput {
 		outputJSONReport(changes, dbSummary, changeCounts, summaryOnly)
@@ -165,7 +165,7 @@ func countChangeTypes(changes []*audit.Change) map[string]int {
 		"modified_owner":       0,
 		"total":                len(changes),
 	}
-	
+
 	for _, change := range changes {
 		switch change.ChangeType {
 		case "added":
@@ -180,7 +180,7 @@ func countChangeTypes(changes []*audit.Change) map[string]int {
 			counts["modified_owner"]++
 		}
 	}
-	
+
 	return counts
 }
 
@@ -188,7 +188,7 @@ func countChangeTypes(changes []*audit.Change) map[string]int {
 func outputJSONReport(changes []*audit.Change, dbSummary map[string]interface{}, changeCounts map[string]int, summaryOnly bool) {
 	report := map[string]interface{}{
 		"database_summary": dbSummary,
-		"changes_summary": changeCounts,
+		"changes_summary":  changeCounts,
 	}
 
 	if !summaryOnly {
@@ -203,10 +203,10 @@ func outputJSONReport(changes []*audit.Change, dbSummary map[string]interface{},
 func outputTextReport(changes []*audit.Change, dbSummary map[string]interface{}, changeCounts map[string]int, summaryOnly bool) {
 	// Print report header and database info
 	printReportHeader(dbSummary)
-	
+
 	// Print changes summary
 	printChangesSummary(changeCounts)
-	
+
 	// Show detailed changes if requested and we have changes
 	if !summaryOnly && len(changes) > 0 {
 		printDetailedChanges(changes)

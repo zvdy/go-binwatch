@@ -93,13 +93,6 @@ func checkDatabaseExists(dbPath string, force bool) error {
 
 // performScan handles the scanning of binaries
 func performScan(cfg *config.Config, logger *logging.Logger) ([]*audit.BinaryInfo, error) {
-	// Initialize database
-	db, err := audit.NewDatabase(cfg.DatabasePath)
-	if err != nil {
-		logger.Error("Failed to create database: %v", err)
-		return nil, fmt.Errorf("failed to create database: %w", err)
-	}
-
 	// Create scanner
 	scanner, err := audit.NewScanner(cfg.ScanPaths, cfg.WhitelistedBins)
 	if err != nil {
